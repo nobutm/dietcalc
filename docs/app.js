@@ -224,3 +224,4 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#tdee-form").addEventListener("submit", handleSubmit);
   $("#reset").addEventListener("click", handleReset);
 });
+
