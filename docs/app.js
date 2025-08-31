@@ -48,32 +48,60 @@ function calc(weight, bodyFat, activityKey) {
   const a = ACTIVITIES[activityKey];
   if (!a) throw new Error("活動レベルが不正です");
   const leanMass = weight * (1 - bodyFat / 100);
-  const bmr = leanMass * 28;
+
+  // LBMに応じたBMR計算式の切り替え
+  let formulaName = "";
+  let bmr = NaN;
+  if (leanMass < 45) {
+    // Katch–McArdle式: BMR = 370 + 21.6 × LBM
+    formulaName = "Katch–McArdle";
+    bmr = 370 + 21.6 * leanMass;
+  } else if (leanMass <= 60) {
+    // 簡易式: BMR = 28 × LBM
+    formulaName = "簡易式";
+    bmr = 28 * leanMass;
+  } else {
+    // Cunningham式: BMR = 500 + 22 × LBM
+    formulaName = "Cunningham";
+    bmr = 500 + 22 * leanMass;
+  }
+
   const tdee = bmr * a.factor;
-  return { a, leanMass, bmr, tdee };
+  return { a, leanMass, bmr, tdee, formulaName };
 }
 
 function renderOutput(inputs, result) {
   const { weight, bodyFat } = inputs;
-  const { a, leanMass, bmr, tdee } = result;
+  const { a, leanMass, bmr, tdee, formulaName } = result;
 
   const inputText = [
     `体重: ${toFixed1(weight)} kg`,
     `体脂肪率: ${toFixed1(bodyFat)} %`,
-    `活動レベル: ${a.ja} (${a.en}, 係数 ${a.factor})`,
+    `除脂肪体重(LBM): ${toFixed1(leanMass)} kg`,
+    `活動係数: ${a.factor}（${a.ja}/${a.en}）`,
   ].join("\n");
+
+  let bmrStep = "";
+  if (formulaName === "Katch–McArdle") {
+    bmrStep = `基礎代謝（Katch–McArdle） = 370 + 21.6 × LBM = 370 + 21.6 × ${toFixed1(leanMass)} = ${toFixed1(bmr)} kcal`;
+  } else if (formulaName === "簡易式") {
+    bmrStep = `基礎代謝（簡易式） = 28 × LBM = 28 × ${toFixed1(leanMass)} = ${toFixed1(bmr)} kcal`;
+  } else {
+    bmrStep = `基礎代謝（Cunningham） = 500 + 22 × LBM = 500 + 22 × ${toFixed1(leanMass)} = ${toFixed1(bmr)} kcal`;
+  }
 
   const stepsText = [
     `除脂肪体重 = 体重 × (1 − 体脂肪率/100) = ${toFixed1(weight)} × (1 − ${toFixed1(bodyFat)}/100) = ${toFixed1(leanMass)} kg`,
-    `基礎代謝 = 除脂肪体重 × 28 = ${toFixed1(leanMass)} × 28 = ${toFixed1(bmr)} kcal`,
-    `消費カロリー = 基礎代謝 × 活動係数 = ${toFixed1(bmr)} × ${a.factor} = ${toFixed1(tdee)} kcal`,
+    bmrStep,
+    `総消費カロリー(TDEE) = 基礎代謝 × 活動係数 = ${toFixed1(bmr)} × ${a.factor} = ${toFixed1(tdee)} kcal`,
   ].join("\n");
 
   const resultText = [
     `除脂肪体重: ${toFixed1(leanMass)} kg`,
-    `基礎代謝: ${toFixed1(bmr)} kcal`,
+    `基礎代謝(BMR): ${toFixed1(bmr)} kcal`,
+    `使用式: ${formulaName}`,
     `活動レベル: ${a.ja} (係数 ${a.factor})`,
-    `1日あたりの消費カロリー: ${toFixed1(tdee)} kcal`,
+    `1日あたりの消費カロリー(TDEE): ${toFixed1(tdee)} kcal`,
   ].join("\n");
 
   $("#inputValues").textContent = inputText;
@@ -122,4 +150,3 @@ document.addEventListener("DOMContentLoaded", () => {
   $("#tdee-form").addEventListener("submit", handleSubmit);
   $("#reset").addEventListener("click", handleReset);
 });
-
