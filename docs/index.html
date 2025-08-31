@@ -23,6 +23,12 @@
           </div>
 
           <div class="field">
+            <label for="target">1カ月あたりの目標減少体重 (kg)</label>
+            <select id="target" name="target"></select>
+            <p id="target-desc" class="desc">1.0kg〜体重の4%まで、0.5kg刻み</p>
+          </div>
+
+          <div class="field">
             <label for="activity">活動レベル</label>
             <select id="activity" name="activity" required>
               <option value="1">1 = 座りがち（Sedentary, 係数 1.2）</option>
@@ -55,6 +61,18 @@
           <h3>[計算結果]</h3>
           <pre id="result"></pre>
         </div>
+
+        <div class="sub">
+          <h3>[目標に基づく摂取カロリー目安]</h3>
+          <pre id="targetSummary"></pre>
+          <p id="calWarn" class="desc" hidden>※注意: 摂取カロリーが1200 kcal未満にならないようにしてください</p>
+        </div>
+
+        <div class="sub">
+          <h3>摂取カロリーをPFCに分配した場合の目安</h3>
+          <pre id="pfcSummary"></pre>
+          <p class="desc">※各食品換算は目安表示であり、実際の食事では複数の栄養素が含まれます</p>
+        </div>
       </section>
 
       <footer>
@@ -65,4 +83,3 @@
     <script src="app.js"></script>
   </body>
   </html>
-
