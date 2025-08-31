@@ -37,6 +37,33 @@ const $ = (sel) => document.querySelector(sel);
 function toFixed1(n) {
   return Number.isFinite(n) ? n.toFixed(1) : "";
 }
+function toFixed0(n) {
+  return Number.isFinite(n) ? Math.round(n).toString() : "";
+}
+
+function updateTargetOptions() {
+  const weight = Number($("#weight").value);
+  const sel = $("#target");
+  if (!sel) return;
+
+  // 1.0kg 〜 体重の4% までを 0.5kg 刻みで生成
+  const minKg = 1.0;
+  let maxKg = Number.isFinite(weight) && weight > 0 ? weight * 0.04 : minKg;
+  // 0.5刻みの下限方向に丸め
+  maxKg = Math.max(minKg, Math.floor(maxKg / 0.5) * 0.5);
+
+  // 既存オプションをクリア
+  sel.innerHTML = "";
+
+  for (let v = minKg; v <= maxKg + 1e-9; v += 0.5) {
+    const opt = document.createElement("option");
+    opt.value = v.toFixed(1);
+    opt.textContent = `${v.toFixed(1)} kg/月`;
+    sel.appendChild(opt);
+  }
+  // デフォルトは最小値（1.0kg）
+  sel.value = minKg.toFixed(1);
+}
 
 function updateActivityDesc() {
   const key = Number($("#activity").value);
@@ -71,7 +98,7 @@ function calc(weight, bodyFat, activityKey) {
 }
 
 function renderOutput(inputs, result) {
-  const { weight, bodyFat } = inputs;
+  const { weight, bodyFat, targetLoss } = inputs;
   const { a, leanMass, bmr, tdee, formulaName } = result;
 
   const inputText = [
@@ -108,6 +135,46 @@ function renderOutput(inputs, result) {
   $("#steps").textContent = stepsText;
   $("#result").textContent = resultText;
   $("#output").hidden = false;
+
+  // 目標に基づく摂取カロリー計算
+  const deficitPerDay = Math.round((targetLoss * 7700) / 30);
+  const intake = tdee - deficitPerDay;
+  const weeklyLoss = targetLoss / 4; // 1ヶ月 ≒ 4週として簡便計算
+
+  const targetSummary = [
+    `目標: ${toFixed1(targetLoss)} kg/月`,
+    `必要赤字: ${toFixed0(deficitPerDay)} kcal/日`,
+    `推奨摂取カロリー: ${toFixed0(intake)} kcal/日`,
+    `減量ペース: 週あたり${toFixed1(weeklyLoss)} kg、月あたり${toFixed1(targetLoss)} kg`,
+  ].join("\n");
+  $("#targetSummary").textContent = targetSummary;
+  $("#calWarn").hidden = !(intake < 1200);
+
+  // PFCバランス計算（P=25%, F=25%, C=50%）
+  const pGram = intake * 0.25 / 4; // 4 kcal/g
+  const fGram = intake * 0.25 / 9; // 9 kcal/g
+  const cGram = intake * 0.50 / 4; // 4 kcal/g
+
+  // 食品換算
+  const chickenG = Math.round((pGram / 32) * 100); // 100gあたり32gP
+  const eggs = Math.round(pGram / 6); // 1個6gP
+  const oilTbsp = (fGram / 13.6); // 大さじ1=13.6g
+  const riceG = Math.round((cGram / 28) * 100); // 100gで28gC
+  const pastaG = Math.round((cGram / 25) * 100); // 100gで25gC
+  const udonG = Math.round((cGram / 21) * 100); // 100gで21gC
+
+  const pfcSummary = [
+    `タンパク質: ${toFixed0(pGram)} g`,
+    `→ 鶏むね肉 約${toFixed0(chickenG)} g`,
+    `→ 卵 約${toFixed0(eggs)} 個`,
+    `脂質: ${toFixed0(fGram)} g`,
+    `→ 油 約${toFixed1(oilTbsp)} 大さじ`,
+    `炭水化物: ${toFixed0(cGram)} g`,
+    `→ ご飯 約${toFixed0(riceG)} g`,
+    `→ パスタ 約${toFixed0(pastaG)} g`,
+    `→ うどん 約${toFixed0(udonG)} g`,
+  ].join("\n");
+  $("#pfcSummary").textContent = pfcSummary;
 }
 
 function parseNumber(v) {
@@ -120,6 +187,7 @@ function handleSubmit(e) {
   const weight = parseNumber($("#weight").value);
   const bodyFat = parseNumber($("#bodyFat").value);
   const activityKey = Number($("#activity").value);
+  const targetLoss = parseNumber($("#target").value);
 
   if (!(weight >= 0)) {
     alert("体重を正しく入力してください（0以上の数値）");
@@ -131,21 +199,27 @@ function handleSubmit(e) {
   }
 
   const result = calc(weight, bodyFat, activityKey);
-  renderOutput({ weight, bodyFat }, result);
+  renderOutput({ weight, bodyFat, targetLoss }, result);
 }
 
 function handleReset() {
   $("#tdee-form").reset();
   updateActivityDesc();
+  updateTargetOptions();
   $("#output").hidden = true;
   $("#inputValues").textContent = "";
   $("#steps").textContent = "";
   $("#result").textContent = "";
+  $("#targetSummary").textContent = "";
+  $("#pfcSummary").textContent = "";
+  $("#calWarn").hidden = true;
 }
 
 // 初期化
 document.addEventListener("DOMContentLoaded", () => {
   updateActivityDesc();
+  updateTargetOptions();
+  $("#weight").addEventListener("input", updateTargetOptions);
   $("#activity").addEventListener("change", updateActivityDesc);
   $("#tdee-form").addEventListener("submit", handleSubmit);
   $("#reset").addEventListener("click", handleReset);
